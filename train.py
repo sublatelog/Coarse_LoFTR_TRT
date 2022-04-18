@@ -5,13 +5,9 @@ from train.settings import TrainSettings
 
 def main():
     parser = argparse.ArgumentParser(description='LoFTR knowledge distillation.')
-    parser.add_argument('--path', type=str, default='/data_sets/BlendedMVS',
-                        help='Path to the dataset.')
-    parser.add_argument('--checkpoint_path', type=str,
-                        default='weights',
-                        help='Where to store a log information and checkpoints.')
-    parser.add_argument('--weights', type=str, default='weights/outdoor_ds.ckpt',
-                        help='Path to the LoFTR teacher network weights.')
+    parser.add_argument('--path', type=str, default='/data_sets/BlendedMVS', help='Path to the dataset.')
+    parser.add_argument('--checkpoint_path', type=str, default='weights', help='Where to store a log information and checkpoints.')
+    parser.add_argument('--weights', type=str, default='weights/outdoor_ds.ckpt', help='Path to the LoFTR teacher network weights.')
 
     opt = parser.parse_args()
     print(opt)
