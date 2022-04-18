@@ -35,7 +35,10 @@ class Trainer(object):
             sub_path = 'no-teacher'
             if self.settings.with_teacher:
                 sub_path = 'teacher'
+                
+            # torch.utils.tensorboard
             self.summary_writer = SummaryWriter(log_dir=os.path.join(checkpoint_path, sub_path))
+            
         self.optimizer = None
 
         self.global_train_index = 0
@@ -52,9 +55,11 @@ class Trainer(object):
 
         real_batch_size = self.settings.batch_size // self.settings.batch_size_divider
 
+        # teacher ----------------------------------------------------------------------------------------------------
         self.teacher_cfg = default_cfg
-        self.teacher_cfg['input_batch_size'] = real_batch_size
-        self.teacher_model = LoFTR(config=self.teacher_cfg)
+        self.teacher_cfg['input_batch_size'] = real_batch_size      
+        self.teacher_model = LoFTR(config=self.teacher_cfg)        
+        
         checkpoint = torch.load(weights_path)
         if checkpoint is not None:
             missed_keys, unexpected_keys = self.teacher_model.load_state_dict(checkpoint['state_dict'], strict=False)
@@ -64,10 +69,14 @@ class Trainer(object):
             print('Teachers pre-trained weights were successfully loaded.')
         else:
             print('Failed to load checkpoint')
+            
 
+        # student ----------------------------------------------------------------------------------------------------
         self.student_cfg = make_student_config(default_cfg)
         self.student_cfg['input_batch_size'] = real_batch_size
         self.student_model = LoFTR(config=self.student_cfg)
+        
+        
 
         if self.settings.cuda:
             self.teacher_model = self.teacher_model.cuda()
@@ -78,16 +87,22 @@ class Trainer(object):
 
         # setup dataset
         batch_size = self.settings.batch_size // self.settings.batch_size_divider
+        
+        
+        # dataset ----------------------------------------------------------------------------------------------------
         self.train_dataset = MVSDataset(dataset_path,
                                         (self.student_cfg['input_width'], self.student_cfg['input_height']),
                                         self.student_cfg['resolution'][0],
                                         depth_tolerance=self.settings.depth_tolerance,
                                         epoch_size=self.settings.epoch_size)
 
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True,
+        self.train_dataloader = DataLoader(self.train_dataset, 
+                                           batch_size=batch_size, 
+                                           shuffle=True,
                                            num_workers=self.settings.data_loader_num_workers)
 
         self.create_default_optimizer()
+        
 
     def add_image_summary(self, name, image1, image2,
                           teacher_conf_matrix,
@@ -218,14 +233,16 @@ class Trainer(object):
         student_mae = train_student_mae / real_batch_index
         train_loss = train_total_loss.item() / real_batch_index
         return train_loss, student_mae, teacher_mae
+    
 
+    # AdamW
     def create_default_optimizer(self):
         parameters = self.student_model.parameters()
 
         self.optimizer = torch.optim.AdamW(
-            params=parameters,
-            lr=self.settings.learning_rate,
-        )
+                                            params=parameters,
+                                            lr=self.settings.learning_rate,
+                                            )
 
     def add_model_graph(self):
         img_size = (
