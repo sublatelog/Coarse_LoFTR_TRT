@@ -19,7 +19,7 @@ class TrainSettings:
         self.temperature = 5.0
         self.distill_ampl_coeff = 10  # distillation loss is usually too small - make it bigger
 
-        self.amp_scale = 2.**8
+        self.amp_scale = 2.**8 # 256
         self.data_loader_num_workers = 4
         self.write_statistics = True
         self.statistics_period = 10
