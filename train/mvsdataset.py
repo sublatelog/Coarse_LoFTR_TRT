@@ -22,13 +22,21 @@ def get_view_pairs(file_name, image_files, cams_files, depth_files):
             if len(line) > 3:
                 tokens = line.split()
                 pair_files = []
+                
+                # 同じ対象のIDを調べる
                 for token in tokens[1::2]:
-                    img_id = token.zfill(8)
+                    img_id = token.zfill(8) # 文字列を特定の文字数になるように0で埋める
+                    
                     for img_file_name, cam_file_name, depth_file_name in zip(image_files, cams_files, depth_files):
                         text_name = str(img_file_name)
+                        
+                        # ファイル名にIDを含み、maskでない場合、(img_file_name, cam_file_name, depth_file_name)のファイルセットとして追加する。                       
                         if img_id in text_name and 'mask' not in text_name:
                             pair_files.append((img_file_name, cam_file_name, depth_file_name))
-                pairs = itertools.permutations(pair_files, r=2)
+                            
+                # 同じ対象のファイルセットのリストから長さ2の順列組み合わせを取り出す。            
+                pairs = itertools.permutations(pair_files, r=2) 
+                
                 view_pairs.extend(pairs)
     return view_pairs
 
@@ -172,11 +180,16 @@ class MVSDataset(Dataset):
 
             pairs_file = os.path.join(folder_name, 'cams', 'pair.txt')
             if os.path.exists(pairs_file):
+                
+                # 同じ対象のファイルセットのリストから長さ2の順列組み合わせを取り出す。
                 view_pairs = get_view_pairs(pairs_file, image_files, cams_files, depth_files)
                 self.items.extend(view_pairs)
 
-        self.rng = default_rng(seed)
+        # シャッフル
+        self.rng = default_rng(seed)       
         self.rng.shuffle(self.items)
+        
+        # epoch_sizeで切る
         if epoch_size != 0:
             self.epoch_items = self.items[:epoch_size]
 
@@ -186,17 +199,25 @@ class MVSDataset(Dataset):
             self.epoch_items = self.items[:self.epoch_size]
 
     def __getitem__(self, index):
-        (img_file_name1, cam_file_name1, depth_file_name1), (img_file_name2, cam_file_name2, depth_file_name2) = \
-            self.items[index]
+        # 同じ対象のファイルセットの長さ2の順列組み合わせからindex指定で取り出す。
+        (img_file_name1, cam_file_name1, depth_file_name1), (img_file_name2, cam_file_name2, depth_file_name2) = self.items[index]
+        
         img1 = cv2.imread(str(img_file_name1))
+        
+        # size
         img_size_orig = np.array([img1.shape[1], img1.shape[0]])
+        
+        # img1のサイズに調節
         img1 = make_query_image(img1, self.image_size)
+        
+        # img1のサイズに調節
         img2 = cv2.imread(str(img_file_name2))
         img2 = make_query_image(img2, self.image_size)
 
         img1 = torch.from_numpy(img1)[None] / 255.0
         img2 = torch.from_numpy(img2)[None] / 255.0
 
+        
         conf_matrix, camera1, camera2 = self.generate_groundtruth_confidence(cam_file_name1,
                                                                              depth_file_name1,
                                                                              cam_file_name2,
@@ -220,20 +241,28 @@ class MVSDataset(Dataset):
         w = original_image_size[1] // self.resolution
         h = original_image_size[0] // self.resolution
 
+        # (w, h)で型を作る
         coordinates_2d = np.array(list(np.ndindex(w, h))) * self.resolution
         coordinates_2d = np.hstack([coordinates_2d, np.ones_like(coordinates_2d[:, [0]])])
 
+        # depth_hw1から型を抜き出す
         depth1 = depth_hw1[coordinates_2d[:, 1], coordinates_2d[:, 0], np.newaxis]
+        
+        # 型とdepthでdata_camera1からcoordinateを取り出す
         coordinates1_3d = data_camera1.back_project_points(coordinates_2d, depth1)
 
+        # data_camera2にcoordinates1_3dを投影する
         coordinates2, depth2_computed = data_camera2.project_points(coordinates1_3d)
 
         # check depth consistency
-        coordinates2_clipped = np.around(coordinates2)
+        coordinates2_clipped = np.around(coordinates2) # 小数点以下の四捨五入
+        
         mask = np.where(
-            np.all((coordinates2_clipped[:, :2] >= (0, 0)) & (
-                    coordinates2_clipped[:, :2] < (original_image_size[1], original_image_size[0])),
-                   axis=1))
+                        np.all( # 全要素が条件を満たす
+                            (coordinates2_clipped[:, :2] >= (0, 0)) & (coordinates2_clipped[:, :2] < (original_image_size[1], original_image_size[0])), 
+                            axis=1
+                        ))
+        
         coordinates2_clipped = coordinates2_clipped[mask].astype(np.long)
         coordinates2 = coordinates2[mask]
         coordinates_2d = coordinates_2d[mask]
@@ -248,8 +277,14 @@ class MVSDataset(Dataset):
 
         # filter image coordinates to satisfy the grid property
         region_threshold = self.resolution / 3  # pixels
+        
         grid_mask = np.where(
-            np.all((self.resolution - coordinates2[:, :2] % self.resolution) <= region_threshold, axis=1))
+                            np.all(
+                                    (self.resolution - coordinates2[:, :2] % self.resolution) <= region_threshold, 
+                                    axis=1
+                            )
+        )
+        
         coordinates2 = coordinates2[grid_mask]
         coordinates_2d = coordinates_2d[grid_mask]
 
@@ -273,8 +308,10 @@ class MVSDataset(Dataset):
         h = self.image_size[1] // self.resolution
 
         mask = np.where(
-            np.all((coordinates2[:, :2] >= (0, 0)) & (coordinates2[:, :2] < (w, h)),
-                   axis=1))
+                        np.all(
+                            (coordinates2[:, :2] >= (0, 0)) & (coordinates2[:, :2] < (w, h)),
+                            axis=1
+                        ))
         coordinates2 = coordinates2[mask][:, :2]
         coordinates1 = coordinates1[mask][:, :2]
 
@@ -283,6 +320,8 @@ class MVSDataset(Dataset):
         coordinates2 = coordinates2[:, 1] * w + coordinates2[:, 0]
 
         conf_matrix = np.zeros((h * w, h * w), dtype=float)
+        
+        # coordinates1とcoordinates2の両方を満たす箇所を1.0にする（他は0.0）
         conf_matrix[coordinates1.astype(np.long), coordinates2.astype(np.long)] = 1.0
 
         return conf_matrix, data_camera1, data_camera2
