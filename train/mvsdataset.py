@@ -175,16 +175,22 @@ class MVSDataset(Dataset):
             image_files = list(Path(images_folder).glob('rect_[0-9]{3}_0_r5000.png'))
 #             image_files = list(Path(images_folder).glob('*[0-9].*'))
             image_files.sort()
+    
+            print("image_files:", len(image_files))
 
             cams_folder = os.path.join(folder_name, 'Cameras/train')
 #             cams_folder = os.path.join(folder_name, 'cams')
             cams_files = list(Path(cams_folder).glob('*cam.*'))
             cams_files.sort()
+    
+            print("cams_files:", len(cams_files))
 
             depth_folder = os.path.join(folder_name, 'Depths/scan1_train')
 #             depth_folder = os.path.join(folder_name, 'rendered_depth_maps')
             depth_files = list(Path(depth_folder).glob('*.*'))
             depth_files.sort()
+    
+            print("depth_files:", len(depth_files))
 
             pairs_file = os.path.join(folder_name, 'Cameras', 'pair.txt')
 #             pairs_file = os.path.join(folder_name, 'cams', 'pair.txt')
