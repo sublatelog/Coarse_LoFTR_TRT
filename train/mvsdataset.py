@@ -17,10 +17,10 @@ from utils import make_query_image, ratio_preserving_resize
 def get_view_pairs(file_name, image_files, cams_files, depth_files):
     view_pairs = []
     with open(file_name) as file:
-        lines = file.readlines()
+        lines = file.readlines() # 
         for line in lines[1:]:
             if len(line) > 3:
-                tokens = line.split()
+                tokens = line.split() # 10 10 2346.41 1 2036.53 9 1243.89 12 1052.87 11 1000.84 13 703.583 2 604.456 8 439.759 14 327.419 27 249.278 
                 pair_files = []
                 
                 # 同じ対象のIDを調べる
@@ -156,7 +156,7 @@ def load_pfm(file_name):
 class MVSDataset(Dataset):
     def __init__(self, path, image_size, resolution, depth_tolerance=0.005, seed=0, epoch_size=0,
                  return_cams_info=False):
-        self.path = path
+        self.path = path # /content/datasets/mvs_training/dtu
         self.image_size = image_size
         self.items = []
         self.epoch_size = epoch_size
@@ -164,21 +164,29 @@ class MVSDataset(Dataset):
         self.return_cams_info = return_cams_info
         self.depth_tolerance = depth_tolerance
 
-        mvs_folders = list(Path(self.path).glob('*'))
-        for folder_name in mvs_folders:
-            images_folder = os.path.join(folder_name, 'blended_images')
-            image_files = list(Path(images_folder).glob('*[0-9].*'))
+#         mvs_folders = list(Path(self.path).glob('*'))
+        num_train = 128
+        for i in range(num_train):
+#         for folder_name in mvs_folders:
+            folder_name = self.path
+            images_folder = os.path.join(folder_name, 'Rectified/scan1_train')
+#             images_folder = os.path.join(folder_name, 'blended_images')
+            image_files = list(Path(images_folder).glob('rect_[0-9]{3}_0_r5000.png'))
+#             image_files = list(Path(images_folder).glob('*[0-9].*'))
             image_files.sort()
 
-            cams_folder = os.path.join(folder_name, 'cams')
+            cams_folder = os.path.join(folder_name, 'Cameras/train')
+#             cams_folder = os.path.join(folder_name, 'cams')
             cams_files = list(Path(cams_folder).glob('*cam.*'))
             cams_files.sort()
 
-            depth_folder = os.path.join(folder_name, 'rendered_depth_maps')
+            depth_folder = os.path.join(folder_name, 'Depths/scan1_train')
+#             depth_folder = os.path.join(folder_name, 'rendered_depth_maps')
             depth_files = list(Path(depth_folder).glob('*.*'))
             depth_files.sort()
 
-            pairs_file = os.path.join(folder_name, 'cams', 'pair.txt')
+            pairs_file = os.path.join(folder_name, 'Cameras', 'pair.txt')
+#             pairs_file = os.path.join(folder_name, 'cams', 'pair.txt')
             if os.path.exists(pairs_file):
                 
                 # 同じ対象のファイルセットのリストから長さ2の順列組み合わせを取り出す。
