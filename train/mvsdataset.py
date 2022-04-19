@@ -172,7 +172,7 @@ class MVSDataset(Dataset):
             folder_name = self.path
             images_folder = os.path.join(folder_name, 'Rectified/scan1_train')
 #             images_folder = os.path.join(folder_name, 'blended_images')
-            image_files = list(Path(images_folder).glob('*[0-9]{3}_0_*.*'))
+            image_files = list(Path(images_folder).glob('rect_[0-9]{3}_0_r5000.*')) # rect_001_5_r5000.png
 #             image_files = list(Path(images_folder).glob('*[0-9].*'))
             image_files.sort()
     
