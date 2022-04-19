@@ -165,7 +165,8 @@ class MVSDataset(Dataset):
         self.depth_tolerance = depth_tolerance
 
 #         mvs_folders = list(Path(self.path).glob('*'))
-        num_train = 128
+        num_train = 1
+#         num_train = 128
         for i in range(num_train):
 #         for folder_name in mvs_folders:
             folder_name = self.path
@@ -193,6 +194,8 @@ class MVSDataset(Dataset):
                 view_pairs = get_view_pairs(pairs_file, image_files, cams_files, depth_files)
                 self.items.extend(view_pairs)
 
+        print("len:", len(self.items))
+        
         # シャッフル
         self.rng = default_rng(seed)       
         self.rng.shuffle(self.items)
