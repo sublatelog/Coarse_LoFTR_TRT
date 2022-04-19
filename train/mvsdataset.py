@@ -25,10 +25,11 @@ def get_view_pairs(file_name, image_files, cams_files, depth_files):
                 
                 # 同じ対象のIDを調べる
                 for token in tokens[1::2]:
-                    img_id = token.zfill(8) # 文字列を特定の文字数になるように0で埋める
+                    img_id = token.zfill(3) # 文字列を特定の文字数になるように0で埋める
+#                     img_id = token.zfill(8) # 文字列を特定の文字数になるように0で埋める
                     
                     for img_file_name, cam_file_name, depth_file_name in zip(image_files, cams_files, depth_files):
-                        text_name = str(img_file_name)
+                        text_name = str(img_file_name) # rect_001_5_r5000.png
                         
                         # ファイル名にIDを含み、maskでない場合、(img_file_name, cam_file_name, depth_file_name)のファイルセットとして追加する。                       
                         if img_id in text_name and 'mask' not in text_name:
