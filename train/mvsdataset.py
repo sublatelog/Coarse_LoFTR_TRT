@@ -105,12 +105,12 @@ class DataCamera:
 
 
 def load_camera_matrices(file_name):
-    print(file_name)
+#     print(file_name)
     with open(file_name) as file:
         camera = DataCamera()
         words = file.read().split()
         
-        print(len(words))
+#         print(len(words))
         assert (len(words) == 29) # 31
         
         """
