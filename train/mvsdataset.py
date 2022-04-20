@@ -108,6 +108,7 @@ def load_camera_matrices(file_name):
     with open(file_name) as file:
         camera = DataCamera()
         words = file.read().split()
+        print(len(words))
         assert (len(words) == 31)
         for i in range(0, 4):
             for j in range(0, 4):
