@@ -319,19 +319,50 @@ class MVSDataset(Dataset):
 
         # (w, h)で型を作る
         coordinates_2d = np.array(list(np.ndindex(w, h))) * self.resolution # [[0-7]:[0-9]]*16
-        print(coordinates_2d)
+        """
+        [[  0   0]
+         [  0  16]
+         [  0  32]
+         [  0  48]
+         [  0  64]
+         [  0  80]
+         [  0  96]
+         [  0 112]
+         [ 16   0]
+         [ 16  16]
+         [ 16  32]
+        """
         coordinates_2d = np.hstack([coordinates_2d, np.ones_like(coordinates_2d[:, [0]])]) # 値が1の列を追加
-        print(coordinates_2d)
-        
+        """
+        [[  0   0   1]
+         [  0  16   1]
+         [  0  32   1]
+         [  0  48   1]
+         [  0  64   1]
+         [  0  80   1]
+         [  0  96   1]
+         [  0 112   1]
+         [ 16   0   1]
+         [ 16  16   1]
+         [ 16  32   1]
+         [ 16  48   1]
+         [ 16  64   1]
+         [ 16  80   1]
+         [ 16  96   1]
+         [ 16 112   1]
+         [ 32   0   1]
+        """
         # depth_hw1から型をcoordinates_2dの(行, 列, ？)で抜き出す
         depth1 = depth_hw1[coordinates_2d[:, 1], coordinates_2d[:, 0], np.newaxis]
+        print(depth1)
         
         # 型とdepthでdata_camera1から3D位置を作成
         coordinates1_3d = data_camera1.back_project_points(coordinates_2d, depth1)
-
+        print(coordinates1_3d)
         # 3D位置から2D位置を作成
         coordinates2, depth2_computed = data_camera2.project_points(coordinates1_3d)
-
+        print(coordinates2)
+        print(depth2_computed)
         # check depth consistency
         coordinates2_clipped = np.around(coordinates2) # 小数点以下の四捨五入
         
