@@ -103,38 +103,119 @@ class DataCamera:
         """
         
         # from pixel to camera space
+        print("self.intrinsic")
+        print(self.intrinsic)
         intrinsic_inv = np.linalg.inv(self.intrinsic) # np.zeros((3, 3)), np.linalg.inv():逆行列を求める
-        print("intrinsic_inv")
-        print(intrinsic_inv)
+        """
+        intrinsic_inv
+        [[ 0.00276594  0.         -0.22929852]
+         [ 0.          0.00277471 -0.18419592]
+         [ 0.          0.          1.        ]]
+        """
         
+        """
+        coordinates_2d
+        [[  0   0   1]
+         [  0  16   1]
+         [  0  32   1]
+         [  0  48   1]
+         [  0  64   1]
+         [  0  80   1]
+         [  0  96   1]
+         [  0 112   1]
+         [ 16   0   1]
+         [ 16  16   1]
+         [ 16  32   1]
+         [ 16  48   1]
+        """
         
-        print("coordinates_2d")
-        print(coordinates_2d)
-        print("depth")
-        print(depth)
+        """
+        depth
+        [[  0.     ]
+         [  0.     ]
+         [700.183  ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [832.4816 ]
+        """
+        
         coordinates_2d = coordinates_2d * depth
-        print("coordinates_2d")
-        print(coordinates_2d)
+        """
+        coordinates_2d
+        [[    0.             0.             0.        ]
+         [    0.             0.             0.        ]
+
+         [    0.             0.             0.        ]
+         [22405.85546875 78420.49414062   700.1829834 ]
+         [    0.             0.             0.        ]
+         [    0.             0.             0.        ]
+         [    0.             0.             0.        ]
+         [    0.             0.             0.        ]
+         [    0.             0.             0.        ]
+         [    0.             0.             0.        ]
+         [39959.11816406 79918.23632812   832.48162842]
+         [33391.74609375 77914.07421875   695.66137695]
+         [    0.             0.             0.        ]
+        """
         
         coordinates_cam = coordinates_2d.dot(intrinsic_inv.T)  # [x, y, z]
-        print("coordinates_cam")
-        print(coordinates_cam)
+        """
+        coordinates_cam
+        [[  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+         [-98.57751776  88.62359483 700.1829834 ]
+         [  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+         [-80.36215285  68.41053012 832.48162842]
+         [-67.15445002  88.05128583 695.66137695]
+         [  0.           0.           0.        ]
+         [  0.           0.           0.        ]
+        """
         
         # make homogeneous
         coordinates_cam = np.hstack([coordinates_cam, np.ones_like(coordinates_cam[:, [0]])])
 
         # from camera to world space
         r = self.get_rot_matrix() # 単位行列にextrinsicを上書き
-        print("r")
-        print(r)
+        """
+        r
+        [[-0.636298  -0.727666   0.25618    0.       ]
+         [ 0.0315712  0.307237   0.951109   0.       ]
+         [-0.770797   0.613276  -0.172521   0.       ]
+         [ 0.         0.         0.         1.       ]]
+        """
         
         r_inv = np.linalg.inv(r) # 逆行列
+        print("r_inv")
+        print(r_inv)
+        
         t = self.extrinsic[:, 3] # 外部パラメーターの位置部分
+        print("t")
+        print(t)
 
         coordinates_cam[:, :3] -= t[:3]
         coordinates_world = coordinates_cam.dot(r_inv.T) # dot():内積
-        print("coordinates_world")
-        print(coordinates_world)
+        """
+        coordinates_world
+        [[ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+         [ 512.63883005 -392.41179956  718.94893333    1.        ]
+        """
 
         return coordinates_world
 
