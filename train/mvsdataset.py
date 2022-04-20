@@ -111,22 +111,37 @@ def load_camera_matrices(file_name):
         words = file.read().split()
         
         print(len(words))
-        assert (len(words) == 31)
+        assert (len(words) == 29) # 31
         
-        for i in range(0, 4):
+        """
+        extrinsic 4x4　外部パラメーター
+        4:-0.0956172 -0.903896 0.416929 -268.918
+        4:0.247582 0.38409 0.889482 -549.69
+        4:-0.964137 0.188274 0.187063 539.553
+        4:0.0 0.0 0.0 1.0
+
+        intrinsic 3x3 内部パラメーター
+        3:2892.33 0 823.205
+        3:0 2883.18 619.069
+        3:0 0 1
+
+        2:425 2.5
+        """
+        
+        for i in range(0, 4): # 0,1,2,3
             for j in range(0, 4):
-                extrinsic_index = 4 * i + j + 1
+                extrinsic_index = 4 * i + j + 1  # 1,2,3,4,, 5,6,7,8,, 9,10,11,12,, 13,14,15,16,,
                 camera.extrinsic[i][j] = words[extrinsic_index]
 
         for i in range(0, 3):
             for j in range(0, 3):
-                intrinsic_index = 3 * i + j + 18
+                intrinsic_index = 3 * i + j + 18  # 18,19,20,, 21,22,23,, 24,25,26,,
                 camera.intrinsic[i][j] = words[intrinsic_index]
 
         camera.depth_min = float(words[27])
         camera.depth_interval = float(words[28])
-        camera.depth_num = int(float(words[29]))
-        camera.depth_max = float(words[30])
+#         camera.depth_num = int(float(words[29]))
+#         camera.depth_max = float(words[30])
         return camera
 
 
