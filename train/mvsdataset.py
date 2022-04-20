@@ -284,8 +284,10 @@ class MVSDataset(Dataset):
 
         depth_hw1 = load_pfm(depth_file_name1)
         depth_hw2 = load_pfm(depth_file_name2)
+        print(depth_hw2)
+        
 
-        original_image_size = depth_hw1.shape
+        original_image_size = depth_hw1.shape # pf_size:160 128
 
         w = original_image_size[1] // self.resolution
         h = original_image_size[0] // self.resolution
