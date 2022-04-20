@@ -58,6 +58,7 @@ class DataCamera:
         dir = z.dot(r_inv.T)
         return dir[:3]
 
+    # 外部パラメーターの位置部を取り出す
     def get_pos(self):
         t = self.extrinsic[:, 3]
         return t
@@ -70,20 +71,30 @@ class DataCamera:
         camera_pos[:3] *= -1
         return camera_pos[:3]
 
+    # 単位行列に外部パラメーターを上書き
     def get_rot_matrix(self):
-        r = np.eye(4)
+        r = np.eye(4) # 単位行列
+        """
+        array([[1., 0., 0., 0.],
+               [0., 1., 0., 0.],
+               [0., 0., 1., 0.],
+               [0., 0., 0., 1.]])
+       """
+        
         r[0:3, 0:3] = self.extrinsic[0:3, 0:3]
         return r
 
+    # 3Dの位置情報の操作して2D位置を作成
     def project_points(self, coordinates_3d):
-        coordinates_cam = coordinates_3d.dot(self.extrinsic.T)
-        coordinates_cam = coordinates_cam / coordinates_cam[:, [3]]
+        coordinates_cam = coordinates_3d.dot(self.extrinsic.T) # 3D位置と外部パラメーターの内積
+        coordinates_cam = coordinates_cam / coordinates_cam[:, [3]] # 3行目で割る
 
-        intrinsic_ex = np.pad(self.intrinsic, ((0, 0), (0, 1)), 'constant', constant_values=((0, 0), (0, 0)))
-        coordinates_2d = coordinates_cam.dot(intrinsic_ex.T)
-        coordinates_2d = coordinates_2d / coordinates_2d[:, [2]]
-        return coordinates_2d, coordinates_cam[:, [2]]
+        intrinsic_ex = np.pad(self.intrinsic, ((0, 0), (0, 1)), 'constant', constant_values=((0, 0), (0, 0))) # 内部パラメーターをパディングで調節
+        coordinates_2d = coordinates_cam.dot(intrinsic_ex.T) # 3D位置と内部パラメーターの内積で2Dに変える
+        coordinates_2d = coordinates_2d / coordinates_2d[:, [2]] # 2行目で割る
+        return coordinates_2d, coordinates_cam[:, [2]] # 2D位置, 3D位置
 
+    # 2Dの位置情報の操作
     def back_project_points(self, coordinates_2d, depth):
         """
         self : png
@@ -100,12 +111,12 @@ class DataCamera:
         coordinates_cam = np.hstack([coordinates_cam, np.ones_like(coordinates_cam[:, [0]])])
 
         # from camera to world space
-        r = self.get_rot_matrix()
+        r = self.get_rot_matrix() # 単位行列にextrinsicを上書き
         r_inv = np.linalg.inv(r) # 逆行列
-        t = self.extrinsic[:, 3]
+        t = self.extrinsic[:, 3] # 外部パラメーターの位置部分
 
         coordinates_cam[:, :3] -= t[:3]
-        coordinates_world = coordinates_cam.dot(r_inv.T)
+        coordinates_world = coordinates_cam.dot(r_inv.T) # dot():内積
 
         return coordinates_world
 
@@ -313,10 +324,10 @@ class MVSDataset(Dataset):
         # depth_hw1から型をcoordinates_2dの(行, 列, ？)で抜き出す
         depth1 = depth_hw1[coordinates_2d[:, 1], coordinates_2d[:, 0], np.newaxis]
         
-        # 型とdepthでdata_camera1からcoordinateを取り出す
+        # 型とdepthでdata_camera1から3D位置を作成
         coordinates1_3d = data_camera1.back_project_points(coordinates_2d, depth1)
 
-        # data_camera2にcoordinates1_3dを投影する
+        # 3D位置から2D位置を作成
         coordinates2, depth2_computed = data_camera2.project_points(coordinates1_3d)
 
         # check depth consistency
