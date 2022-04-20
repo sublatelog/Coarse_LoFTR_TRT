@@ -85,8 +85,14 @@ class DataCamera:
         return coordinates_2d, coordinates_cam[:, [2]]
 
     def back_project_points(self, coordinates_2d, depth):
+        """
+        self : png
+        coordinates_2d : [row, col]
+        depth : depth_hw1[coordinates_2d:[col], coordinates_2d:[row], np.newaxis]
+        """
+        
         # from pixel to camera space
-        intrinsic_inv = np.linalg.inv(self.intrinsic)
+        intrinsic_inv = np.linalg.inv(self.intrinsic) # np.zeros((3, 3)), np.linalg.inv():逆行列を求める
         coordinates_2d = coordinates_2d * depth
         coordinates_cam = coordinates_2d.dot(intrinsic_inv.T)  # [x, y, z]
 
@@ -95,7 +101,7 @@ class DataCamera:
 
         # from camera to world space
         r = self.get_rot_matrix()
-        r_inv = np.linalg.inv(r)
+        r_inv = np.linalg.inv(r) # 逆行列
         t = self.extrinsic[:, 3]
 
         coordinates_cam[:, :3] -= t[:3]
@@ -191,7 +197,7 @@ class MVSDataset(Dataset):
         self.image_size = image_size
         self.items = []
         self.epoch_size = epoch_size
-        self.resolution = resolution
+        self.resolution = resolution # (16, 4)[0]
         self.return_cams_info = return_cams_info
         self.depth_tolerance = depth_tolerance
 
@@ -285,18 +291,26 @@ class MVSDataset(Dataset):
         depth_hw1 = load_pfm(depth_file_name1)
         depth_hw2 = load_pfm(depth_file_name2)
         print(depth_hw2)
-        
+        """
+        [[  0.        0.        0.      ...   0.        0.        0.     ]
+         [  0.        0.        0.      ...   0.        0.        0.     ]
+         [  0.        0.        0.      ...   0.        0.        0.     ]
+         ...
+         [637.763   637.63104 637.8569  ... 608.58246 608.456   608.52106]
+         [634.9358  633.941   633.69403 ... 606.6304  606.5178  606.60925]
+         [630.75995 630.63495 630.03937 ... 605.18945 605.22174 605.23083]]
+        """
 
         original_image_size = depth_hw1.shape # pf_size:160 128
 
-        w = original_image_size[1] // self.resolution
-        h = original_image_size[0] // self.resolution
+        w = original_image_size[1] // self.resolution # (16, 4)[0], 128 / 16 = 8
+        h = original_image_size[0] // self.resolution # 160/16=10
 
         # (w, h)で型を作る
-        coordinates_2d = np.array(list(np.ndindex(w, h))) * self.resolution
-        coordinates_2d = np.hstack([coordinates_2d, np.ones_like(coordinates_2d[:, [0]])])
+        coordinates_2d = np.array(list(np.ndindex(w, h))) * self.resolution # [[0-7]:[0-9]]*16
+        coordinates_2d = np.hstack([coordinates_2d, np.ones_like(coordinates_2d[:, [0]])]) # 値が1の列を追加
 
-        # depth_hw1から型を抜き出す
+        # depth_hw1から型をcoordinates_2dの(行, 列, ？)で抜き出す
         depth1 = depth_hw1[coordinates_2d[:, 1], coordinates_2d[:, 0], np.newaxis]
         
         # 型とdepthでdata_camera1からcoordinateを取り出す
