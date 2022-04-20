@@ -319,8 +319,10 @@ class MVSDataset(Dataset):
 
         # (w, h)で型を作る
         coordinates_2d = np.array(list(np.ndindex(w, h))) * self.resolution # [[0-7]:[0-9]]*16
+        print(coordinates_2d)
         coordinates_2d = np.hstack([coordinates_2d, np.ones_like(coordinates_2d[:, [0]])]) # 値が1の列を追加
-
+        print(coordinates_2d)
+        
         # depth_hw1から型をcoordinates_2dの(行, 列, ？)で抜き出す
         depth1 = depth_hw1[coordinates_2d[:, 1], coordinates_2d[:, 0], np.newaxis]
         
