@@ -148,6 +148,12 @@ def load_camera_matrices(file_name):
 def load_pfm(file_name):
     with open(file_name, mode='rb') as file:
         header = file.readline().decode('UTF-8').rstrip()
+        
+        """
+        Pf
+        160 128
+        -1.000000
+        """
 
         if header == 'PF':
             color = True
@@ -155,18 +161,23 @@ def load_pfm(file_name):
             color = False
         else:
             raise Exception('Not a PFM file.')
+            
         dim_match = re.match(r'^(\d+)\s(\d+)\s$', file.readline().decode('UTF-8'))
         if dim_match:
-            width, height = map(int, dim_match.groups())
+            width, height = map(int, dim_match.groups()) # 160 128
         else:
             raise Exception('Malformed PFM header.')
-        scale = float((file.readline()).decode('UTF-8').rstrip())
+            
+        scale = float((file.readline()).decode('UTF-8').rstrip()) # -1.000000
+        
         if scale < 0:  # little-endian
             data_type = '<f'
         else:
             data_type = '>f'  # big-endian
+            
+        # データ部の取得
         data_string = file.read()
-        data = np.fromstring(data_string, data_type)
+        data = np.fromstring(data_string, data_type) # 文字列で書かれた行列・配列を数値に変換
         shape = (height, width, 3) if color else (height, width)
         data = np.reshape(data, shape)
         data = cv2.flip(data, 0)
