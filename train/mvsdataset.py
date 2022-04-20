@@ -104,19 +104,37 @@ class DataCamera:
         
         # from pixel to camera space
         intrinsic_inv = np.linalg.inv(self.intrinsic) # np.zeros((3, 3)), np.linalg.inv():逆行列を求める
+        print("intrinsic_inv")
+        print(intrinsic_inv)
+        
+        
+        print("coordinates_2d")
+        print(coordinates_2d)
+        print("depth")
+        print(depth)
         coordinates_2d = coordinates_2d * depth
+        print("coordinates_2d")
+        print(coordinates_2d)
+        
         coordinates_cam = coordinates_2d.dot(intrinsic_inv.T)  # [x, y, z]
-
+        print("coordinates_cam")
+        print(coordinates_cam)
+        
         # make homogeneous
         coordinates_cam = np.hstack([coordinates_cam, np.ones_like(coordinates_cam[:, [0]])])
 
         # from camera to world space
         r = self.get_rot_matrix() # 単位行列にextrinsicを上書き
+        print("r")
+        print(r)
+        
         r_inv = np.linalg.inv(r) # 逆行列
         t = self.extrinsic[:, 3] # 外部パラメーターの位置部分
 
         coordinates_cam[:, :3] -= t[:3]
         coordinates_world = coordinates_cam.dot(r_inv.T) # dot():内積
+        print("coordinates_world")
+        print(coordinates_world)
 
         return coordinates_world
 
@@ -301,7 +319,7 @@ class MVSDataset(Dataset):
 
         depth_hw1 = load_pfm(depth_file_name1)
         depth_hw2 = load_pfm(depth_file_name2)
-        print(depth_hw2)
+        
         """
         [[  0.        0.        0.      ...   0.        0.        0.     ]
          [  0.        0.        0.      ...   0.        0.        0.     ]
@@ -422,15 +440,33 @@ class MVSDataset(Dataset):
                             (coordinates2_clipped[:, :2] >= (0, 0)) & (coordinates2_clipped[:, :2] < (original_image_size[1], original_image_size[0])), 
                             axis=1
                         ))
-        print("mask")
-        print(mask)
+        """
+        mask
+        (array([10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28,
+               29, 30, 31, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47,
+               53, 54, 55, 61, 62, 63, 69, 70, 71, 78]),)
+        """
         
         coordinates2_clipped = coordinates2_clipped[mask].astype(np.long)
         coordinates2 = coordinates2[mask]
         coordinates_2d = coordinates_2d[mask]
         depth2_computed = depth2_computed[mask]
-        print("depth2_computed")
-        print(depth2_computed)
+        """
+        depth2_computed
+        [[553.84071301]
+         [558.60513158]
+         [563.16237646]
+         [568.4362655 ]
+         [573.91236636]
+         [579.25411086]
+         [592.019649  ]
+         [547.56295082]
+         [551.59414192]
+         [555.72251929]
+         [560.37811786]
+         [565.18635127]
+         [570.16694413]
+         """
 
         depth2 = depth_hw2[coordinates2_clipped[:, 1], coordinates2_clipped[:, 0], np.newaxis]
         
@@ -490,8 +526,16 @@ class MVSDataset(Dataset):
         
         # coordinates1とcoordinates2の両方を満たす箇所を1.0にする（他は0.0）
         conf_matrix[coordinates1.astype(np.long), coordinates2.astype(np.long)] = 1.0
-        print("conf_matrix")
-        print(conf_matrix)
+        """
+        conf_matrix
+        [[0. 0. 0. ... 0. 0. 0.]
+         [0. 0. 0. ... 0. 0. 0.]
+         [0. 0. 0. ... 0. 0. 0.]
+         ...
+         [0. 0. 0. ... 0. 0. 0.]
+         [0. 0. 0. ... 0. 0. 0.]
+         [0. 0. 0. ... 0. 0. 0.]]
+        """
         
         return conf_matrix, data_camera1, data_camera2
 
