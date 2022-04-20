@@ -354,8 +354,22 @@ class MVSDataset(Dataset):
         """
         # depth_hw1から型をcoordinates_2dの(行, 列, ？)で抜き出す
         depth1 = depth_hw1[coordinates_2d[:, 1], coordinates_2d[:, 0], np.newaxis]
-        print(depth1)
-        
+        """
+        [[  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [  0.     ]
+         [593.61505]
+         [597.86456]
+         [602.0165 ]
+         [606.6527 ]
+         [612.2571 ]
+        """
         # 型とdepthでdata_camera1から3D位置を作成
         coordinates1_3d = data_camera1.back_project_points(coordinates_2d, depth1)
         """
@@ -371,6 +385,7 @@ class MVSDataset(Dataset):
         # 3D位置から2D位置を作成
         coordinates2, depth2_computed = data_camera2.project_points(coordinates1_3d)
         """
+        coordinates2
         [[-436.96860492  422.54865705    1.        ]
          [-436.96860492  422.54865705    1.        ]
          [-436.96860492  422.54865705    1.        ]
@@ -383,7 +398,22 @@ class MVSDataset(Dataset):
          [  37.68580728   -4.11082869    1.        ]
          [  38.24905828    6.11399674    1.        ]
         """
-        print(depth2_computed)
+        
+        """
+        depth2_computed
+        [[ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [ 30.35929586]
+         [600.00655943]
+         [609.97034427]
+         [619.92222389]
+        """
         # check depth consistency
         coordinates2_clipped = np.around(coordinates2) # 小数点以下の四捨五入
         
@@ -392,14 +422,21 @@ class MVSDataset(Dataset):
                             (coordinates2_clipped[:, :2] >= (0, 0)) & (coordinates2_clipped[:, :2] < (original_image_size[1], original_image_size[0])), 
                             axis=1
                         ))
+        print("mask")
+        print(mask)
         
         coordinates2_clipped = coordinates2_clipped[mask].astype(np.long)
         coordinates2 = coordinates2[mask]
         coordinates_2d = coordinates_2d[mask]
         depth2_computed = depth2_computed[mask]
+        print("depth2_computed")
+        print(depth2_computed)
 
         depth2 = depth_hw2[coordinates2_clipped[:, 1], coordinates2_clipped[:, 0], np.newaxis]
-        depth2[depth2 == 0.0] = np.finfo(depth2.dtype).max
+        
+        depth2[depth2 == 0.0] = np.finfo(depth2.dtype).max # np.finfo:「数値型データ」が取り得る値の範囲
+        
+        # 差の割合が許容範囲に収まっているかチェック
         depth_consistency_mask, _ = np.where(np.absolute((depth2 - depth2_computed) / depth2) < self.depth_tolerance)
 
         coordinates2 = coordinates2[depth_consistency_mask]
@@ -453,7 +490,9 @@ class MVSDataset(Dataset):
         
         # coordinates1とcoordinates2の両方を満たす箇所を1.0にする（他は0.0）
         conf_matrix[coordinates1.astype(np.long), coordinates2.astype(np.long)] = 1.0
-
+        print("conf_matrix")
+        print(conf_matrix)
+        
         return conf_matrix, data_camera1, data_camera2
 
     def __len__(self):
