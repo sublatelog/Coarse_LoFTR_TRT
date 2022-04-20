@@ -103,8 +103,12 @@ class DataCamera:
         """
         
         # from pixel to camera space
-        print("self.intrinsic")
-        print(self.intrinsic)
+        """
+        self.intrinsic
+        [[361.54125   0.       82.9005 ]
+         [  0.      360.39625  66.38375]
+         [  0.        0.        1.     ]]
+        """
         intrinsic_inv = np.linalg.inv(self.intrinsic) # np.zeros((3, 3)), np.linalg.inv():逆行列を求める
         """
         intrinsic_inv
@@ -194,12 +198,23 @@ class DataCamera:
         """
         
         r_inv = np.linalg.inv(r) # 逆行列
-        print("r_inv")
-        print(r_inv)
+        """
+        r_inv
+        [[ 0.65705269 -0.01296394 -0.75373308 -0.        ]
+         [-0.65305156  0.48967028 -0.57770798 -0.        ]
+         [ 0.37656991  0.87181177  0.31327303  0.        ]
+         [ 0.          0.          0.          1.        ]]
+        """
         
         t = self.extrinsic[:, 3] # 外部パラメーターの位置部分
-        print("t")
-        print(t)
+        """
+        t
+        [-271.044 -494.295  361.453    1.   ]
+        self.intrinsic
+        [[361.54125    0.        82.900375]
+         [  0.       360.3975    66.38375 ]
+         [  0.         0.         1.      ]]
+        """
 
         coordinates_cam[:, :3] -= t[:3]
         coordinates_world = coordinates_cam.dot(r_inv.T) # dot():内積
