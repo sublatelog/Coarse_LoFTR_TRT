@@ -189,6 +189,7 @@ class Trainer(object):
                     with torch.cuda.amp.autocast():
                         
                         # バッチ学習
+                        # losses:[student_loss*0.3, distillation_loss*0.7]
                         losses, teacher_loss, student_mae, teacher_mae = self.train_loss_fn(*batch)
                         
                         # normalize loss to account for batch accumulation
@@ -478,8 +479,8 @@ class Trainer(object):
 
         if self.settings.with_teacher:
             return [
-                    student_loss * self.settings.student_coeff,
-                    distillation_loss * self.settings.distillation_coeff
+                    student_loss * self.settings.student_coeff, # self.student_coeff = 0.3        
+                    distillation_loss * self.settings.distillation_coeff # self.distillation_coeff = 0.7 (1-self.student_coeff)
                    ], 
                     teacher_loss * self.settings.student_coeff, 
                     student_mae, 
