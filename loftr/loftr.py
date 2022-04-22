@@ -15,10 +15,17 @@ class LoFTR(nn.Module):
 
         # Modules
         self.backbone = build_backbone(config)
+        
+        # 位置情報マップ
         self.pos_encoding = PositionEncodingSine(
-            config['coarse']['d_model'],
-            temp_bug_fix=config['coarse']['temp_bug_fix'])
-        self.loftr_coarse = LocalFeatureTransformer(self.config['input_batch_size'], config['coarse'])
+                                                config['coarse']['d_model'],
+                                                temp_bug_fix=config['coarse']['temp_bug_fix']
+                                                )
+        
+        # [attention:multi-head > Linear:head_marge > mlp]:['self', 'cross'] * 4
+        self.loftr_coarse = LocalFeatureTransformer(self.config['input_batch_size'], config['coarse']) # _CN.INPUT_BATCH_SIZE = 1
+        
+        # 特徴マップを行方向と列方向の確率分布に変えて積を取る
         self.coarse_matching = CoarseMatching(config['match_coarse'], config['coarse']['d_model'])
 
     def backbone_forward(self, img0, img1):
