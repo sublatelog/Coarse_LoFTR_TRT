@@ -15,6 +15,7 @@ def make_student_config(config):
     return student_config
 
 
+# 閾値以上の場所のconf_matrixをscaleして取得
 def get_coarse_match(conf_matrix, input_height, input_width, resolution):
     """
         Predicts coarse matches from conf_matrix
@@ -37,13 +38,13 @@ def get_coarse_match(conf_matrix, input_height, input_width, resolution):
 
     # 3. find all valid coarse matches
     # this only works when at most one `True` in each row
-    b_ids, i_ids, j_ids  = np.nonzero(conf_matrix > 0.01)
+    b_ids, i_ids, j_ids  = np.nonzero(conf_matrix > 0.01) # 閾値以上の場所のindexを取得
     # all_j_ids = mask.argmax(axis=2)
     # j_ids = all_j_ids.squeeze(0)
     # b_ids = np.zeros_like(j_ids, dtype=np.long)
     # i_ids = np.arange(feature_num, dtype=np.long)
 
-    mconf = conf_matrix[b_ids, i_ids, j_ids]
+    mconf = conf_matrix[b_ids, i_ids, j_ids] # 閾値以上の場所を取得
 
     # 4. Update with matches in original image resolution
     scale = hw0_i[0] / hw0_c[0]
