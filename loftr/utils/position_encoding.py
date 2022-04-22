@@ -5,27 +5,32 @@ from torch import nn
 
 class PositionEncodingSine(nn.Module):
     """
-    This is a sinusoidal position encoding that generalized to 2-dimensional images
+    This is a sinusoidal正弦波 position encoding that generalized to 2-dimensional images
     """
 
     def __init__(self, d_model, max_shape=(256, 256), temp_bug_fix=True):
         """
         Args:
+            d_model: _CN.COARSE.D_MODEL = 256
             max_shape (tuple): for 1/8 featmap, the max length of 256 corresponds to 2048 pixels
+            
             temp_bug_fix (bool): As noted in this [issue](https://github.com/zju3dv/LoFTR/issues/41),
                 the original implementation of LoFTR includes a bug in the pos-enc impl, which has little impact
-                on the final performance. For now, we keep both impls for backward compatability.
+                on the final performance. For now, we keep both impls for backward compatability互換性.
                 We will remove the buggy impl after re-training all variants of our released models.
         """
         super().__init__()
 
         pe = torch.zeros((d_model, *max_shape))
-        y_position = torch.ones(max_shape).cumsum(0).float().unsqueeze(0)
-        x_position = torch.ones(max_shape).cumsum(1).float().unsqueeze(0)
+        y_position = torch.ones(max_shape).cumsum(0).float().unsqueeze(0) # 累積和：行方向
+        x_position = torch.ones(max_shape).cumsum(1).float().unsqueeze(0) # 累積和：列方向
+        
+        # 元loftrに入っていたバグを取るか取らないか
         if temp_bug_fix:
             div_term = torch.exp(torch.arange(0, d_model//2, 2).float() * (-math.log(10000.0) / (d_model//2)))
         else:  # a buggy implementation (for backward compatability only)
             div_term = torch.exp(torch.arange(0, d_model//2, 2).float() * (-math.log(10000.0) / d_model//2))
+            
         div_term = div_term[:, None, None]  # [C//4, 1, 1]
         pe[0::4, :, :] = torch.sin(x_position * div_term)
         pe[1::4, :, :] = torch.cos(x_position * div_term)
