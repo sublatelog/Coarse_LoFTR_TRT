@@ -7,9 +7,9 @@ class CoarseMatching(nn.Module):
     def __init__(self, config, d_size):
         super().__init__()
         # general config
-        self.border_rm = config['border_rm']
-        self.temperature = config['dsmax_temperature']
-        self.d_size = d_size
+        self.border_rm = config['border_rm'] # _CN.MATCH_COARSE.BORDER_RM = 2
+        self.temperature = config['dsmax_temperature'] # _CN.MATCH_COARSE.DSMAX_TEMPERATURE = 0.1
+        self.d_size = d_size # 256
 
     def forward(self, feat_c0, feat_c1):
         """
@@ -28,6 +28,7 @@ class CoarseMatching(nn.Module):
         sim_matrix = sim_matrix_orig / self.temperature
         # assert(torch.allclose(sim_matrix_t, sim_matrix, atol=1e-05))
 
+        # conf_matrix = 行方向の確率分布＊列方向の確率分布
         conf_matrix = F.softmax(sim_matrix, 1) * F.softmax(sim_matrix, 2)
 
         return conf_matrix, sim_matrix_orig
