@@ -6,7 +6,7 @@ Modified from: https://github.com/idiap/fast-transformers/blob/master/fast_trans
 import torch
 from torch.nn import Module, Dropout
 
-
+# elu（Exponential Linear Unit）
 def elu_feature_map(x):
     return torch.nn.functional.elu(x) + 1
 
@@ -16,8 +16,8 @@ class LinearAttention(Module):
         super().__init__()
         self.feature_map = elu_feature_map
         self.eps = eps
-        self.nheads = nheads
-        self.dim = dim
+        self.nheads = nheads # 8
+        self.dim = dim # 256
 
     # masks are used during training
     # def forward(self, queries, keys, values, q_mask=None, kv_mask=None):
@@ -32,24 +32,36 @@ class LinearAttention(Module):
         Returns:
             queried_values: (N, L, H, D)
         """
+        # Q ----------------------------------------------------------------------------------------------------
         Q = self.feature_map(queries)
+        
+        # K ----------------------------------------------------------------------------------------------------
         K = self.feature_map(keys)
 
-        v_length = values.size(1)
+        # V ----------------------------------------------------------------------------------------------------
+        v_length = values.size(1) # values: [N, *S, H, D]
         values = values / v_length  # prevent fp16 overflow
 
         # Remove einsums to satisfy TensorRT
         # KV_t = torch.einsum("nshd,nshv->nhdv", K, values)  # (S,D)' @ S,V
+        
         k = K.view(-1, self.dim).unsqueeze(2)
         v = values.view(-1, self.dim).unsqueeze(1)
-        kv = torch.bmm(k, v)
-        kv = kv.reshape(-1, v_length, self.nheads, self.dim, self.dim)
-        kv = kv.sum(dim=1)
-        # assert(torch.allclose(KV_t, kv, atol=1e-05))
+        
+        # K*V ----------------------------------------------------------------------------------------------------
+        # torch.bmm():ベクトル同士の内積をバッチごとに計算, torch.dotは1Dしかサポートしていません。
+        kv = torch.bmm(k, v)        
+        kv = kv.reshape(-1, v_length, self.nheads, self.dim, self.dim)        
+        kv = kv.sum(dim=1) # 列方向の和
+        
+        # assert(torch.allclose(KV_t, kv, atol=1e-05)) # KV_t, kvが最小の許容範囲で等しいと言えるかどうか
+        
         KV = kv
 
         # Z_t = 1 / (torch.einsum("nlhd,nhd->nlh", Q, K.sum(dim=1)) + self.eps)
         k = K.sum(dim=1).unsqueeze(1)
+        
+        # K*Q ----------------------------------------------------------------------------------------------------
         z = (Q * k).sum(dim=-1)
         z = 1 / (z + self.eps)
         # assert(torch.allclose(Z_t, z, atol=1e-05))
@@ -58,11 +70,16 @@ class LinearAttention(Module):
         # queried_values_t = torch.einsum("nlhd,nhdv,nlh->nlhv", Q, KV, Z) * v_length
         q = Q.unsqueeze(3)
         kv = KV.unsqueeze(1)
-        qkv = torch.matmul(q, kv)
+        
+        # K*Q*V ----------------------------------------------------------------------------------------------------
+        qkv = torch.matmul(q, kv) # 2つのテンソルの行列積
         qkv = qkv.squeeze(3)
-        qv = qkv * Z.unsqueeze(3)
+        
+        # Q*V = K*Q*V / Q*K ----------------------------------------------------------------------------------------------------
+        qv = qkv * Z.unsqueeze(3) # Z: 1/(Q*k)
         qv *= v_length
         # assert(torch.allclose(queried_values_t, qv, atol=1e-05))
+        
         queried_values = qv
 
-        return queried_values.contiguous()
+        return queried_values.contiguous() # contiguous():メモリ上で要素順に並び、上記のエラーを回避できます。
