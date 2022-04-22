@@ -140,7 +140,10 @@ class Trainer(object):
         self.summary_writer.add_image(f'{name} result/train', res_img,
                                       self.global_train_index)
 
+    # 学習ループ
+    # train > train_loop
     def train_loop(self):
+        
         train_teacher_mae = torch.tensor(0., device='cuda' if self.settings.cuda else 'cpu')
         train_student_mae = torch.tensor(0., device='cuda' if self.settings.cuda else 'cpu')
 
@@ -148,18 +151,33 @@ class Trainer(object):
         train_student_loss = torch.tensor(0., device='cuda' if self.settings.cuda else 'cpu')
         train_distill_loss = torch.tensor(0., device='cuda' if self.settings.cuda else 'cpu')
         train_total_loss = torch.tensor(0., device='cuda' if self.settings.cuda else 'cpu')
+        
+        # self.batch_size_divider = 8  # Used for gradient accumulation
         divider = torch.tensor(self.settings.batch_size_divider, device='cuda' if self.settings.cuda else 'cpu')
+        
         real_batch_index = 0
         progress_bar = tqdm(self.train_dataloader)
+        
+        # autograd エンジンの異常検出をオンまたはオフに設定するコンテキストマネージャ。
         torch.autograd.set_detect_anomaly(True)
+        
         for batch_index, batch in enumerate(progress_bar):
+            
+            # tensorでrequires_grad = Trueにすると自動微分可能です。
+            # .backwardで逆伝搬(勾配情報を計算)。.gradで勾配取得
             with torch.set_grad_enabled(True):
+                
+                # use_amp
                 if self.settings.use_amp:
                     with torch.cuda.amp.autocast():
+                        
+                        # バッチ学習
                         losses, teacher_loss, student_mae, teacher_mae = self.train_loss_fn(*batch)
+                        
                         # normalize loss to account for batch accumulation
                         for loss in losses:
-                            loss /= divider
+                            loss /= divider # self.batch_size_divider = 8  # Used for gradient accumulation
+                            
                         if teacher_loss is not None:
                             teacher_loss /= divider
                         loss = torch.stack(losses).sum()
@@ -167,31 +185,43 @@ class Trainer(object):
                     # Scales the loss, and calls backward()
                     # to create scaled gradients
                     self.scaler.scale(loss).backward()
+                    
+                    # lossの総計
                     train_total_loss += loss.detach()
+                    
+                # no use_amp    
                 else:
+                    # バッチ学習
                     losses, teacher_loss, student_mae, teacher_mae = self.train_loss_fn(*batch)
+                    
                     # normalize loss to account for batch accumulation
                     for loss in losses:
                         loss /= divider
+                        
                     if teacher_loss is not None:
                         teacher_loss /= divider
+                        
+                    # lossesのbackward()
                     loss = torch.stack(losses).sum()
                     loss.backward()
                     train_total_loss += loss.detach()
 
+                # student_maeの総計
                 train_student_mae += student_mae.detach()
 
+                # teacher_loss
                 if teacher_loss is not None:
                     train_teacher_loss += teacher_loss.detach()
                     train_teacher_mae += teacher_mae.detach()
 
+                # lossesの分割
                 if len(losses) > 1:
                     train_student_loss += losses[0].detach()
                     train_distill_loss += losses[1].detach()
 
                 # gradient accumulation
-                if ((batch_index + 1) % self.settings.batch_size_divider == 0) or (
-                        batch_index + 1 == len(self.train_dataloader)):
+                # indexがbatch_size_divider(8)で割り切れる　or　最後のデータ
+                if ((batch_index + 1) % self.settings.batch_size_divider == 0) or (batch_index + 1 == len(self.train_dataloader)):
 
                     current_total_loss = train_total_loss / real_batch_index
                     current_student_loss = train_student_loss / real_batch_index
@@ -201,9 +231,14 @@ class Trainer(object):
                     # save statistics
                     if self.settings.write_statistics:
                         self.write_batch_statistics(real_batch_index)
-
-                    if (real_batch_index + 1) % self.settings.statistics_period == 0:
+                        
+                    # 10回ごとにprogress_barの表示。　self.statistics_period = 10
+                    if (real_batch_index + 1) % self.settings.statistics_period == 0: 
+                        
+                        # optimizerのgroupごとのlr
                         cur_lr = [group['lr'] for group in self.optimizer.param_groups]
+                        
+                        # progress_barの表示を設定
                         progress_bar.set_postfix(
                             {'Teacher loss': current_teacher_loss.item(),
                              'Total loss': current_total_loss.item(),
@@ -213,10 +248,13 @@ class Trainer(object):
 
                     # Optimizer step - apply gradients
                     if self.settings.use_amp:
+                        
                         # Unscales gradients and calls or skips optimizer.step()
                         self.scaler.step(self.optimizer)
+                        
                         # Updates the scale for next iteration
                         self.scaler.update()
+                        
                     else:
                         self.optimizer.step()
 
@@ -224,14 +262,18 @@ class Trainer(object):
                     # This does not zero the memory of each individual parameter,
                     # also the subsequent backward pass uses assignment instead of addition to store gradients,
                     # this reduces the number of memory operations -compared to optimizer.zero_grad()
+                    # 計算済み勾配をゼロで初期化
                     self.optimizer.zero_grad(set_to_none=True)
 
+                    # indexの更新
                     self.global_train_index += 1
                     real_batch_index += 1
 
+        # 全バッチのmaeを全バッチ数で割る
         teacher_mae = train_teacher_mae / real_batch_index
         student_mae = train_student_mae / real_batch_index
         train_loss = train_total_loss.item() / real_batch_index
+        
         return train_loss, student_mae, teacher_mae
     
 
@@ -244,12 +286,20 @@ class Trainer(object):
                                             lr=self.settings.learning_rate,
                                             )
 
+    # PyTorchで書いたモデルをTensorBoardでPNGに吐き出す
     def add_model_graph(self):
         img_size = (
-            self.student_cfg['input_batch_size'], 1, self.student_cfg['input_height'], self.student_cfg['input_width'])
+                    self.student_cfg['input_batch_size'], 
+                    1, 
+                    self.student_cfg['input_height'], 
+                    self.student_cfg['input_width']
+                    )
+        
         fake_input = torch.ones(img_size, dtype=torch.float32)
+        
         if self.settings.cuda:
             fake_input = fake_input.cuda()
+            
         self.summary_writer.add_graph(self.student_model, [fake_input, fake_input])
         self.summary_writer.flush()
 
@@ -268,20 +318,35 @@ class Trainer(object):
 
         self.global_train_index = 0
 
+        # teacherは学習しない. eval()はdropoutやbatch normの on/offの切替        
         self.teacher_model.eval()
+        
+        # studentは学習する
         self.student_model.train()
+        
         for epoch in range(start_epoch, epochs_num):
             print(f"Epoch {epoch}\n-------------------------------")
+            
+            # 学習ループ
             train_loss, student_mae, teacher_mae = self.train_loop()
+            
+            # 表示
             print(f"Train Loss:{train_loss:7f} \n")
             print(f"Student MAE:{student_mae:7f} \n")
             print(f"Teacher MAE:{teacher_mae:7f} \n")
+            
+            # tensorboardに書き込み
             if self.settings.write_statistics:
                 self.summary_writer.add_scalar('Loss/train', train_loss, epoch)
                 self.summary_writer.add_scalar('Student MAE', student_mae, epoch)
 
+            # 保存
             save_checkpoint(name, epoch, self.student_model, self.optimizer, self.scaler, self.checkpoint_path)
+            
+            # datasetのepochを初期化
             self.train_dataset.reset_epoch()
+            
+            # 更新の実行
             scheduler.step()
 
     def write_batch_statistics(self, batch_index):
