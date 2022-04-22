@@ -104,21 +104,32 @@ class Trainer(object):
         self.create_default_optimizer()
         
 
-    def add_image_summary(self, name, image1, image2,
+    def add_image_summary(self, 
+                          name, 
+                          image1, 
+                          image2,
                           teacher_conf_matrix,
                           teacher_config,
                           student_conf_matrix,
                           student_config):
+        
         assert (teacher_config['input_height'] == student_config['input_height'])
         assert (teacher_config['input_width'] == student_config['input_width'])
+        
         img_size = (teacher_config['input_width'], teacher_config['input_height'])
         image1 = tensor_to_image(image1)
         image2 = tensor_to_image(image2)
 
         def draw_feature_points(conf_matrix, config, color):
             conf_matrix = conf_matrix.detach().cpu().numpy()
-            mkpts0, mkpts1, mconf = get_coarse_match(conf_matrix, config['input_height'], config['input_width'],
-                                                     config['resolution'][0])
+            
+            mkpts0, mkpts1, mconf = get_coarse_match(
+                                                     conf_matrix, 
+                                                     config['input_height'], 
+                                                     config['input_width'],
+                                                     config['resolution'][0]
+                                                    )
+            
             # filter only the most confident features
             n_top = 20
             indices = np.argsort(mconf)[::-1]
@@ -129,16 +140,22 @@ class Trainer(object):
             draw_features(image1, mkpts0, img_size, color)
             draw_features(image2, mkpts1, img_size, color)
 
+        # img teache
         if self.settings.with_teacher:
             draw_feature_points(teacher_conf_matrix[0, :, :].unsqueeze(0), teacher_config, (255, 255, 255))
+            
+        # img student
         draw_feature_points(student_conf_matrix[0, :, :].unsqueeze(0), student_config, (0, 0, 0))
 
         # combine images
         res_img = np.hstack((image1, image2))
         res_img = res_img[None]
 
-        self.summary_writer.add_image(f'{name} result/train', res_img,
-                                      self.global_train_index)
+        self.summary_writer.add_image(
+                                      f'{name} result/train', 
+                                      res_img,
+                                      self.global_train_index
+                                      )
 
     # 学習ループ
     # train > train_loop
@@ -350,8 +367,12 @@ class Trainer(object):
             scheduler.step()
 
     def write_batch_statistics(self, batch_index):
+        
+        # 10回おきに実行。　self.statistics_period = 10
         if (batch_index + 1) % self.settings.statistics_period == 0:
+            
             for name, param in self.student_model.named_parameters():
+                # 'bn''bias'以外のパラメーター
                 if param.grad is not None and 'bn' not in name and 'bias' not in name:
                     if not torch.isnan(param.grad).any():
                         self.summary_writer.add_histogram(
@@ -362,13 +383,16 @@ class Trainer(object):
                         )
 
             if self.last_image1 is not None and self.last_image1 is not None:
-                self.add_image_summary('Teacher+Student', self.last_image1, self.last_image2,
+                self.add_image_summary('Teacher+Student', 
+                                       self.last_image1, 
+                                       self.last_image2,
                                        self.last_teacher_conf_matrix,
                                        self.teacher_cfg,
                                        self.last_student_conf_matrix,
                                        self.student_cfg
                                        )
 
+    # train > train_loop > train_loss_fn
     def train_loss_fn(self, image1, image2, conf_matrix_gt):
         if self.settings.cuda:
             image1 = image1.cuda()
@@ -376,49 +400,90 @@ class Trainer(object):
             conf_matrix_gt = conf_matrix_gt.cuda()
 
         student_conf_matrix, student_sim_matrix = self.student_model.forward(image1, image2)
+        
+        # gtとpredの差の平均。　mae：mean_average_error
         student_mae = torch.mean(conf_matrix_gt - student_conf_matrix)
 
+        # teacher
         if self.settings.with_teacher:
+            
+            # pred teacher
             with torch.no_grad():
                 teacher_conf_matrix, teacher_sim_matrix = self.teacher_model.forward(image1, image2)
+                
+            # scale
             scale = self.student_cfg['resolution'][0] // self.teacher_cfg['resolution'][0]
             i_ids = torch.arange(start=0, end=student_conf_matrix.shape[1], device=student_conf_matrix.device) * scale
             j_ids = torch.arange(start=0, end=student_conf_matrix.shape[2], device=student_conf_matrix.device) * scale
 
+            # matrixからscaleされた行を選択
             teacher_conf_matrix_scaled = torch.index_select(teacher_conf_matrix, 1, i_ids)
+            
+            # scaleされたmatrixからscaleされた列を選択
             teacher_conf_matrix_scaled = torch.index_select(teacher_conf_matrix_scaled, 2, j_ids)
+            
+            # gtとpredの差の平均。
             teacher_mae = torch.mean(conf_matrix_gt - teacher_conf_matrix_scaled)
+            
+            # gtとscaleされたpredのcross_entropy_loss
             teacher_loss = self.conf_cross_entropy_loss(conf_matrix_gt, teacher_conf_matrix_scaled)
 
+            # sim_matrixからscaleされた行を選択
             teacher_sim_matrix = torch.index_select(teacher_sim_matrix, 1, i_ids)
+            
+            # sim_matrixからscaleされた列を選択
             teacher_sim_matrix = torch.index_select(teacher_sim_matrix, 2, j_ids)
 
             # compute distillation loss
+            # student log_probs
             soft_log_probs = torch_func.log_softmax(
-                torch.flatten(student_sim_matrix, start_dim=1) / self.settings.temperature, dim=1)
-
+                                                    torch.flatten(student_sim_matrix, start_dim=1) / self.settings.temperature, 
+                                                    dim=1
+                                                    )
+            # teacher log_probs
             soft_log_targets = torch_func.log_softmax(
-                torch.flatten(teacher_sim_matrix, start_dim=1) / self.settings.temperature, dim=1)
+                                                    torch.flatten(teacher_sim_matrix, start_dim=1) / self.settings.temperature,  # self.temperature = 5.0
+                                                    dim=1
+                                                    )
 
-            distillation_loss = torch_func.kl_div(soft_log_probs, soft_log_targets, log_target=True,
-                                                  reduction='batchmean')
+            # klダイバージェンスで確率分布を比較
+            distillation_loss = torch_func.kl_div(
+                                                  soft_log_probs, 
+                                                  soft_log_targets, 
+                                                  log_target=True,
+                                                  reduction='batchmean' #  'batchmean': the sum of the output will be divided by the batchsize
+                                                  )
 
+            # temperatureの2乗を掛ける
             distillation_loss = distillation_loss * self.settings.temperature ** 2
+            
+            # self.distill_ampl_coeff = 10  # distillation loss is usually too small - make it bigger
             distillation_loss *= self.settings.distill_ampl_coeff
 
         # compute student loss - cross entropy
+        # gtとscaleされたpredのcross_entropy_loss
         student_loss = self.conf_cross_entropy_loss(conf_matrix_gt, student_conf_matrix)
 
+        # tensorboardに書き込み
         if self.settings.write_statistics:
             self.last_image1 = image1
             self.last_image2 = image2
+            
+            # teacher last
             if self.settings.with_teacher:
                 self.last_teacher_conf_matrix = teacher_conf_matrix.detach()
+            
+            # student last
             self.last_student_conf_matrix = student_conf_matrix.detach()
 
         if self.settings.with_teacher:
-            return [student_loss * self.settings.student_coeff,
-                    distillation_loss * self.settings.distillation_coeff], teacher_loss * self.settings.student_coeff, student_mae, teacher_mae
+            return [
+                    student_loss * self.settings.student_coeff,
+                    distillation_loss * self.settings.distillation_coeff
+                   ], 
+                    teacher_loss * self.settings.student_coeff, 
+                    student_mae, 
+                    teacher_mae
         else:
             return [student_loss], None, student_mae, None
 
@@ -429,5 +494,8 @@ class Trainer(object):
         conf = torch.clamp(conf_matrix, 1e-6, 1 - 1e-6)
         loss_pos = - torch.log(conf[pos_mask])
         loss_neg = - torch.log(1 - conf[neg_mask])
+        
+        # loss_value = positive + negative
         loss_value = (loss_pos.mean() if loss_pos.numel() > 0 else 0) + loss_neg.mean()
+        
         return loss_value
