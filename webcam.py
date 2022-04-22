@@ -181,7 +181,8 @@ def draw_inference(time_diff, image):
     fps_str = f'Inference: {time_diff:.2} s'
     cv2.putText(image, fps_str, (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (200, 200, 200), 2, cv2.LINE_AA)
 
-
+    
+# 画像にkeypointと値を書き込む
 def draw_features(image, features, img_size, color, draw_text=True):
     indices = range(len(features))
     sx = image.shape[1] / img_size[0]
