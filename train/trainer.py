@@ -478,10 +478,7 @@ class Trainer(object):
             self.last_student_conf_matrix = student_conf_matrix.detach()
 
         if self.settings.with_teacher:
-            return [student_loss * self.settings.student_coeff, distillation_loss * self.settings.distillation_coeff], 
-                    teacher_loss, 
-                    student_mae, 
-                    teacher_mae
+            return [student_loss * self.settings.student_coeff, distillation_loss * self.settings.distillation_coeff], teacher_loss, student_mae, teacher_mae
         else:
             return [student_loss], None, student_mae, None
 
