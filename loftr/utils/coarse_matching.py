@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+# 特徴マップを行方向と列方向の確率分布に変えて積を取る
 class CoarseMatching(nn.Module):
     def __init__(self, config, d_size):
         super().__init__()
