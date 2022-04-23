@@ -58,7 +58,7 @@ class ResNetFPN_8_2(nn.Module):
 
         # Networks ------------------------------------------------------------------------------------------
         # x0
-        self.conv1 = nn.Conv2d(1, initial_dim, kernel_size=7, stride=2, padding=3, bias=False) # 1 > 128
+        self.conv1 = nn.Conv2d(1, initial_dim, kernel_size=7, stride=2, padding=3, bias=False) # 1 > 128, 1/2
         self.bn1 = nn.BatchNorm2d(initial_dim)
         self.relu = nn.ReLU(inplace=True)
         
@@ -74,12 +74,12 @@ class ResNetFPN_8_2(nn.Module):
         
         # 3. FPN upsample ------------------------------------------------------------------------------------------
         # x3_out < x3
-        self.layer3_outconv = conv1x1(block_dims[2], block_dims[2]) # 256 > 256
+        self.layer3_outconv = conv1x1(block_dims[2], block_dims[2]) # 256 > 256, 1/8 > 1/8
         
         # x2_out < x2
-        self.layer2_outconv = conv1x1(block_dims[1], block_dims[2]) # 196 > 256
+        self.layer2_outconv = conv1x1(block_dims[1], block_dims[2]) # 196 > 256, 1/4 > 1/4
         
-        # x2_out < x2_out+x3_out_2x(x3_out_intrp), 256 > 196
+        # x2_out < x2_out+x3_out_2x(x3_out_intrp), 256 > 196        
         self.layer2_outconv2 = nn.Sequential(
                                             conv3x3(block_dims[2], block_dims[2]), # 256 > 256
                                             nn.BatchNorm2d(block_dims[2]),
@@ -88,9 +88,9 @@ class ResNetFPN_8_2(nn.Module):
                                             )
         
         # x1_out < x1
-        self.layer1_outconv = conv1x1(block_dims[0], block_dims[1]) # 128 > 196
+        self.layer1_outconv = conv1x1(block_dims[0], block_dims[1]) # 128 > 196, 1/2 > 1/2
         
-        # x1_out < x1_out+x2_out_2x(x2_out_intrp), 196 > 128
+        # x1_out < x1_out+x2_out_2x(x2_out_intrp), 196 > 128,         
         self.layer1_outconv2 = nn.Sequential(
                                             conv3x3(block_dims[1], block_dims[1]), # 196 > 196
                                             nn.BatchNorm2d(block_dims[1]),
@@ -123,27 +123,27 @@ class ResNetFPN_8_2(nn.Module):
         x3 = self.layer3(x2)  # 1/8
 
         # FPN
-        x3_out = self.layer3_outconv(x3)
+        x3_out = self.layer3_outconv(x3) # 1/8
 
-        x2_out = self.layer2_outconv(x2)
+        x2_out = self.layer2_outconv(x2) # 1/4
 
-        x1_out = self.layer1_outconv(x1)
+        x1_out = self.layer1_outconv(x1) # 1/2
 
         return self.complete_result(x3_out, x2_out, x1_out)
     
 
     def complete_result(self, x3_out,  x2_out, x1_out):
         
-        # 2倍に拡大
+        # 2倍に拡大してx2_outのサイズに合わせる
         # F.interpolate():画像サイズをリサイズ, scale_factor:縦横を拡大
-        x3_out_2x = F.interpolate(x3_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True) # 256 > 512 
+        x3_out_2x = F.interpolate(x3_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True) # 256 > 256, , 1/8 > 1/4 
         
-        x2_out = self.layer2_outconv2(x2_out+x3_out_2x)
+        x2_out = self.layer2_outconv2(x2_out+x3_out_2x) # 256 > 196, 1/4+1/4 
 
-        # 2倍に拡大
-        x2_out_2x = F.interpolate(x2_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True) # 256 > 512
+        # 2倍に拡大してx1_outのサイズに合わせる
+        x2_out_2x = F.interpolate(x2_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True) # 196 > 196, 1/4 > 1/2
         
-        x1_out = self.layer1_outconv2(x1_out+x2_out_2x)
+        x1_out = self.layer1_outconv2(x1_out+x2_out_2x) # 196 > 128, 1/2+1/2
 
         return x3_out, x1_out
 
