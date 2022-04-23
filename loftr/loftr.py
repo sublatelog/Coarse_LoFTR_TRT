@@ -37,7 +37,7 @@ class LoFTR(nn.Module):
         # we assume that data['hw0_i'] == data['hw1_i'] - faster & better BN convergence
         feats_c, feats_f= self.backbone(torch.cat([img0, img1], dim=0))
 
-        bs = self.config['input_batch_size']
+        bs = self.config['input_batch_size'] # _CN.INPUT_BATCH_SIZE = 1
         (feat_c0, feat_c1), (feat_f0, feat_f1) = feats_c.split(bs), feats_f.split(bs)
 
         return feat_c0, feat_f0, feat_c1, feat_f1
@@ -47,10 +47,10 @@ class LoFTR(nn.Module):
             'img0': (torch.Tensor): (N, 1, H, W)
             'img1': (torch.Tensor): (N, 1, H, W)
         """
-        # 1. Local Feature CNN
+        # 1. Local Feature CNN: resnet+fpn
         feat_c0, feat_f0, feat_c1, feat_f1 = self.backbone_forward(img0, img1)
 
-        # 2. coarse-level loftr module
+        # 2. coarse-level loftr module: feat+pos > attention
         # add featmap with positional encoding, then flatten it to sequence [N, HW, C]
         # feat_c0 = rearrange(self.pos_encoding(feat_c0), 'n c h w -> n (h w) c')
         # feat_c1 = rearrange(self.pos_encoding(feat_c1), 'n c h w -> n (h w) c')
@@ -59,7 +59,7 @@ class LoFTR(nn.Module):
 
         feat_c0, feat_c1 = self.loftr_coarse(feat_c0, feat_c1)
 
-        # 3. match coarse-level
+        # 3. match coarse-level: matching
         conf_matrix, sim_matrix = self.coarse_matching(feat_c0, feat_c1)
 
         return conf_matrix, sim_matrix
