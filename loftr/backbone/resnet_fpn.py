@@ -50,38 +50,55 @@ class ResNetFPN_8_2(nn.Module):
         super().__init__()
         # Config
         block = BasicBlock
-        initial_dim = config['initial_dim']
-        block_dims = config['block_dims']
+        initial_dim = config['initial_dim'] # 128
+        block_dims = config['block_dims'] # [128, 196, 256]  # s1, s2, s3
 
         # Class Variable
         self.in_planes = initial_dim
 
-        # Networks
-        self.conv1 = nn.Conv2d(1, initial_dim, kernel_size=7, stride=2, padding=3, bias=False)
+        # Networks ------------------------------------------------------------------------------------------
+        # x0
+        self.conv1 = nn.Conv2d(1, initial_dim, kernel_size=7, stride=2, padding=3, bias=False) # 1 > 128
         self.bn1 = nn.BatchNorm2d(initial_dim)
         self.relu = nn.ReLU(inplace=True)
+        
+        # x1 < x0
+        self.layer1 = self._make_layer(block, block_dims[0], stride=1)  # 1/2 128 block = BasicBlock (128 > 128, 128 > 128)
+        
+        # x2 < x1
+        self.layer2 = self._make_layer(block, block_dims[1], stride=2)  # 1/4 196 block = BasicBlock (128 > 196, 196 > 196)
+        
+        #x3 < x2
+        self.layer3 = self._make_layer(block, block_dims[2], stride=2)  # 1/8 256 block = BasicBlock (128 > 256, 256 > 256)
 
-        self.layer1 = self._make_layer(block, block_dims[0], stride=1)  # 1/2
-        self.layer2 = self._make_layer(block, block_dims[1], stride=2)  # 1/4
-        self.layer3 = self._make_layer(block, block_dims[2], stride=2)  # 1/8
-
-        # 3. FPN upsample
-        self.layer3_outconv = conv1x1(block_dims[2], block_dims[2])
-        self.layer2_outconv = conv1x1(block_dims[1], block_dims[2])
+        
+        # 3. FPN upsample ------------------------------------------------------------------------------------------
+        # x3_out < x3
+        self.layer3_outconv = conv1x1(block_dims[2], block_dims[2]) # 256 > 256
+        
+        # x2_out < x2
+        self.layer2_outconv = conv1x1(block_dims[1], block_dims[2]) # 196 > 256
+        
+        # x2_out < x2_out+x3_out_2x(x3_out_intrp), 256 > 196
         self.layer2_outconv2 = nn.Sequential(
-            conv3x3(block_dims[2], block_dims[2]),
-            nn.BatchNorm2d(block_dims[2]),
-            nn.LeakyReLU(),
-            conv3x3(block_dims[2], block_dims[1]),
-        )
-        self.layer1_outconv = conv1x1(block_dims[0], block_dims[1])
+                                            conv3x3(block_dims[2], block_dims[2]), # 256 > 256
+                                            nn.BatchNorm2d(block_dims[2]),
+                                            nn.LeakyReLU(),
+                                            conv3x3(block_dims[2], block_dims[1]), # 256 > 196
+                                            )
+        
+        # x1_out < x1
+        self.layer1_outconv = conv1x1(block_dims[0], block_dims[1]) # 128 > 196
+        
+        # x1_out < x1_out+x2_out_2x(x2_out_intrp), 196 > 128
         self.layer1_outconv2 = nn.Sequential(
-            conv3x3(block_dims[1], block_dims[1]),
-            nn.BatchNorm2d(block_dims[1]),
-            nn.LeakyReLU(),
-            conv3x3(block_dims[1], block_dims[0]),
-        )
+                                            conv3x3(block_dims[1], block_dims[1]), # 196 > 196
+                                            nn.BatchNorm2d(block_dims[1]),
+                                            nn.LeakyReLU(),
+                                            conv3x3(block_dims[1], block_dims[0]), # 196 > 128
+                                            )
 
+        # 初期化
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -89,6 +106,7 @@ class ResNetFPN_8_2(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+    # レイヤーブロックの作成
     def _make_layer(self, block, dim, stride=1):
         layer1 = block(self.in_planes, dim, stride=stride)
         layer2 = block(dim, dim, stride=1)
@@ -112,12 +130,19 @@ class ResNetFPN_8_2(nn.Module):
         x1_out = self.layer1_outconv(x1)
 
         return self.complete_result(x3_out, x2_out, x1_out)
+    
 
     def complete_result(self, x3_out,  x2_out, x1_out):
-        x3_out_2x = F.interpolate(x3_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True)
+        
+        # 2倍に拡大
+        # F.interpolate():画像サイズをリサイズ, scale_factor:縦横を拡大
+        x3_out_2x = F.interpolate(x3_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True) # 256 > 512 
+        
         x2_out = self.layer2_outconv2(x2_out+x3_out_2x)
 
-        x2_out_2x = F.interpolate(x2_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True)
+        # 2倍に拡大
+        x2_out_2x = F.interpolate(x2_out, scale_factor=[2., 2.], mode='bilinear', align_corners=True) # 256 > 512
+        
         x1_out = self.layer1_outconv2(x1_out+x2_out_2x)
 
         return x3_out, x1_out
