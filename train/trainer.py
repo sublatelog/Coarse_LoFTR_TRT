@@ -436,12 +436,12 @@ class Trainer(object):
             teacher_sim_matrix = torch.index_select(teacher_sim_matrix, 2, j_ids)
 
             # compute distillation loss
-            # student log_probs
+            # student log_probs studentの同時マトリックスの確率分布
             soft_log_probs = torch_func.log_softmax(
                                                     torch.flatten(student_sim_matrix, start_dim=1) / self.settings.temperature, 
                                                     dim=1
                                                     )
-            # teacher log_probs
+            # teacher log_probs teacherの同時マトリックスの確率分布
             soft_log_targets = torch_func.log_softmax(
                                                     torch.flatten(teacher_sim_matrix, start_dim=1) / self.settings.temperature,  # self.temperature = 5.0
                                                     dim=1
