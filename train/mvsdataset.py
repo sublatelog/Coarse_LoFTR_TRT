@@ -339,7 +339,8 @@ class MVSDataset(Dataset):
 #             images_folder = os.path.join(folder_name, 'Rectified/scan1_train')
 #             image_files = list(Path(images_folder).glob('rect_[0-9][0-9][0-9]_0_r5000.*')) # rect_001_5_r5000.png
 
-            images_folder = os.path.join(folder_name, 'Rectified/scan{i+1}_train')
+            images_folder = os.path.join(folder_name, f'Rectified/scan{i+1}_train')
+#             reg_img = 
             image_files = list(Path(images_folder).glob(f'rect_[0-9][0-9][0-9]_{i}_r5000.*')) # rect_001_5_r5000.png
     
 #             image_files = list(Path(images_folder).glob('*[0-9].*'))
