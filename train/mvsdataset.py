@@ -332,29 +332,43 @@ class MVSDataset(Dataset):
         for i in range(num_train):
 #         for folder_name in mvs_folders:
             folder_name = self.path
-            images_folder = os.path.join(folder_name, 'Rectified/scan1_train')
-#             images_folder = os.path.join(folder_name, 'blended_images')
-            image_files = list(Path(images_folder).glob('rect_[0-9][0-9][0-9]_0_r5000.*')) # rect_001_5_r5000.png
+    
+    
+            # image ------------------------------------------------------------------------------------------
+#             images_folder = os.path.join(folder_name, 'Rectified/scan1_train')
+#             image_files = list(Path(images_folder).glob('rect_[0-9][0-9][0-9]_0_r5000.*')) # rect_001_5_r5000.png
+
+            images_folder = os.path.join(folder_name, 'Rectified/scan2_train')
+            image_files = list(Path(images_folder).glob('rect_[0-9][0-9][0-9]_1_r5000.*')) # rect_001_5_r5000.png
+    
 #             image_files = list(Path(images_folder).glob('*[0-9].*'))
             image_files.sort()
     
             print("image_files:", len(image_files))
+        
 
+            # Cameras ------------------------------------------------------------------------------------------
             cams_folder = os.path.join(folder_name, 'Cameras/train')
 #             cams_folder = os.path.join(folder_name, 'cams')
             cams_files = list(Path(cams_folder).glob('*cam.*'))
             cams_files.sort()
     
             print("cams_files:", len(cams_files))
+        
 
-            depth_folder = os.path.join(folder_name, 'Depths/scan1_train')
+            # depth ------------------------------------------------------------------------------------------
+#             depth_folder = os.path.join(folder_name, 'Depths/scan1_train')
+            depth_folder = os.path.join(folder_name, 'Depths/scan2_train')
+    
 #             depth_folder = os.path.join(folder_name, 'rendered_depth_maps')
             depth_files = list(Path(depth_folder).glob('depth_map_*.*'))
 #             depth_files = list(Path(depth_folder).glob('*.*'))
             depth_files.sort()
     
             print("depth_files:", len(depth_files))
-
+        
+        
+            # pairs ------------------------------------------------------------------------------------------
             pairs_file = os.path.join(folder_name, 'Cameras', 'pair.txt')
 #             pairs_file = os.path.join(folder_name, 'cams', 'pair.txt')
             if os.path.exists(pairs_file):
