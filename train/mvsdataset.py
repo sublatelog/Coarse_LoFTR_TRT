@@ -91,7 +91,8 @@ class DataCamera:
 
         intrinsic_ex = np.pad(self.intrinsic, ((0, 0), (0, 1)), 'constant', constant_values=((0, 0), (0, 0))) # 内部パラメーターをパディングで調節
         coordinates_2d = coordinates_cam.dot(intrinsic_ex.T) # 3D位置と内部パラメーターの内積で2Dに変える
-        coordinates_2d = coordinates_2d / coordinates_2d[:, [2]] # 2行目で割る
+#         coordinates_2d = coordinates_2d / coordinates_2d[:, [2]] # 2行目で割る
+        coordinates_2d = np.divide(coordinates_2d, coordinates_2d[:, [2]], out=np.zeros_like(coordinates_2d), where=coordinates_2d[:, [2]]!=0) # for true_divide err
         return coordinates_2d, coordinates_cam[:, [2]] # 2D位置, 3D位置
 
     # 2Dの位置情報の操作
