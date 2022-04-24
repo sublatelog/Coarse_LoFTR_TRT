@@ -328,7 +328,7 @@ class MVSDataset(Dataset):
         self.depth_tolerance = depth_tolerance
 
 #         mvs_folders = list(Path(self.path).glob('*'))
-        num_train = 1
+        num_train = 2
 #         num_train = 128
         for i in range(num_train):
 #         for folder_name in mvs_folders:
@@ -339,8 +339,8 @@ class MVSDataset(Dataset):
 #             images_folder = os.path.join(folder_name, 'Rectified/scan1_train')
 #             image_files = list(Path(images_folder).glob('rect_[0-9][0-9][0-9]_0_r5000.*')) # rect_001_5_r5000.png
 
-            images_folder = os.path.join(folder_name, 'Rectified/scan2_train')
-            image_files = list(Path(images_folder).glob('rect_[0-9][0-9][0-9]_1_r5000.*')) # rect_001_5_r5000.png
+            images_folder = os.path.join(folder_name, 'Rectified/scan{i+1}_train')
+            image_files = list(Path(images_folder).glob(f'rect_[0-9][0-9][0-9]_{i}_r5000.*')) # rect_001_5_r5000.png
     
 #             image_files = list(Path(images_folder).glob('*[0-9].*'))
             image_files.sort()
@@ -359,7 +359,7 @@ class MVSDataset(Dataset):
 
             # depth ------------------------------------------------------------------------------------------
 #             depth_folder = os.path.join(folder_name, 'Depths/scan1_train')
-            depth_folder = os.path.join(folder_name, 'Depths/scan2_train')
+            depth_folder = os.path.join(folder_name, f'Depths/scan{i+1}_train')
     
 #             depth_folder = os.path.join(folder_name, 'rendered_depth_maps')
             depth_files = list(Path(depth_folder).glob('depth_map_*.*'))
