@@ -328,8 +328,8 @@ class MVSDataset(Dataset):
         self.depth_tolerance = depth_tolerance
 
 #         mvs_folders = list(Path(self.path).glob('*'))
-        num_train = 10
-#         num_train = 128
+#         num_train = 10
+        num_train = 128
         for i in range(num_train):
 #         for folder_name in mvs_folders:
             folder_name = self.path
