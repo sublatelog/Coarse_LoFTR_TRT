@@ -17,7 +17,7 @@ _CN.INPUT_BATCH_SIZE = 1
 # 1. LoFTR-backbone (local feature CNN) config
 _CN.RESNETFPN = CN()
 _CN.RESNETFPN.INITIAL_DIM = 128
-_CN.RESNETFPN.BLOCK_DIMS = [128, 196, 256]  # s1, s2, s3
+_CN.RESNETFPN.BLOCK_DIMS = [128, 196, 256, 392] # [128, 196, 256]  # s1, s2, s3
 
 # 2. LoFTR-coarse module config
 _CN.COARSE = CN()
